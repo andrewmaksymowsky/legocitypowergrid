@@ -1,1 +1,53 @@
+/* The main file for the project. */
 
+.section .text
+.include "nios_macros.s"
+
+# address for ADDR_JP1
+.equ ADDR_JP1, 0xFF200060
+
+# address for the IRQ line for JP1 (IRQ11)
+.equ ADDR_JP1_IRQ, 0x800 
+
+#JTAG address
+.equ JTAG, 0x10001020
+
+.global main
+
+main:
+
+#move the address of JP1 into r8
+movia r8, ADDR_JP1
+
+#let JTAG exist, non-clobbered register
+movia r23, JTAG
+
+#setting motor/threshold/sensor bits to output, set states and sensors to inputs; send to direction register
+movia r9, 0x07f557ff
+stwio r9, 4(r8)
+
+#set threshold for touch to 0xF and load the value into the data register
+#enable sensor 0 and sensor 1
+movia r9, 0xe7bfdbff
+stwio r9, 0(r8) 
+
+# temporarily disable threshold register and enable state mode
+# into data register
+movia r9, 0xffdfffff
+stwio r9, 0(r8)
+
+# time to enable interrupts for sensor 0 and sensor 1
+movia r9, 0x18000000
+stwio r9, 8(r8)
+
+# done configuring the JP1. Enable the interrupts for the JP1 now
+movia r8, ADDR_JP1_IRQ
+wrctl ienable, r8
+
+# for PIE
+movia r8, 1
+wrctl status, r8
+
+LOOP:
+	br LOOP
+	

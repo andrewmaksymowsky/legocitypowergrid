@@ -24,6 +24,9 @@ HOUSE_1_OFF:
 # address for the IRQ line for TIMER (IRQ0)
 .equ ADDR_TIMER_IRQ, 0x001
 
+# address for the TWO IRQ lines for JP1 and TIMER (IRQ11 and IRQ0)
+.equ ADDR_JP1_TIMER_IRQ, 0x801
+
 #JTAG address
 .equ JTAG, 0xFF201000
 
@@ -34,16 +37,8 @@ HOUSE_1_OFF:
 .equ TIMER, 0xFF202000
 
 #time for timer to countdown from
+# note: this is a decimal 50000000 to match with 50MHz
 .equ TIME, 0x02FAF080
-
-# address for the TWO IRQ lines for JP1 and TIMER (IRQ11 and IRQ0)
-.equ ADDR_JP1_TIMER_IRQ, 0x801
-
-# address for SINGLE IRQ line for JP1
-.equ ADDR_JP1_IRQ, 0x800
-
-# address for SINGLE IRQ line for TIMER
-.equ ADDR_TIMER_IRQ, 0x001
 
 #memory
 .equ HOUSE0_STATE, 0x3000FFFE
@@ -53,10 +48,10 @@ HOUSE_1_OFF:
 .equ SENSOR2_POLL, 0x3000FFDE
 
 # sensor states in value mode
-# everything is off except the sensor0 and sensor1 bits
+# everything is off except the sensor0, sensor1, and sensor2 bits
 .equ SENSOR0_TIMER, 0xfffffbff
 .equ SENSOR1_TIMER, 0xffffefff
-.equ SENSOR2_TIMER, 0xffff7fff
+.equ SENSOR2_TIMER, 0xffffbfff
 
 .global main
 
@@ -79,7 +74,7 @@ stw r11, 0(r10)
 movia r10, HOUSE1_STATE
 stw r11, 0(r10)
 
-# initialize sensor data to zero
+# initialize sensor memory to zero
 movia r10, SENSOR0_POLL
 stw r11, 0(r10)
 
@@ -93,9 +88,11 @@ stw r11, 0(r10)
 #let JTAG exist, non-clobbered register
 movia r23, JTAG
 
+#let RED LEDS exist, non-clobbered register
 movia r22, RED_LEDS
 stwio r11, 0(r22)
 
+#let HEXS exist, non-clobbered register
 movia r20, HEXLOW
 movi r10, 0b000111111
 stwio r10, 0(r20)
@@ -147,6 +144,7 @@ LOOP:
 	
 
 #****************SUBROUTINES FOR EXCEPTION HANDLER******************
+
 #***************LED AND HEX SUBROUTINES***********
 LED_HEX:
 
@@ -322,7 +320,6 @@ loop_sensor0:
 	andi r11, r11, 0x1
 	bne r0, r11, loop_sensor0
 good_sensor0:
-	# put result into r14
 	ldwio r14, 0(r9)
 	# now the 4-bit sensor value is in the lower 4 bits. Convenient.
 	srli r14, r14, 27
@@ -344,12 +341,11 @@ loop_sensor1:
 	andi r11, r11, 0x1
 	bne r0, r11, loop_sensor1
 good_sensor1:
-	# store contents in r15
 	ldwio r14, 0(r9)
 	srli r14, r14, 27
 	andi r14, r14, 0x0f
+	
 	# store contents into memory now
-
 	movia r15, SENSOR1_POLL
 	stw r14, 0(r15)
 
@@ -368,10 +364,12 @@ good_sensor2:
 
 	movia r15, SENSOR2_POLL
 	stw r14, 0(r15)
-# sensor0, sensor1, and sensor2 data stored in memory
+	
+# -----sensor0, sensor1, and sensor2 data stored in memory by this point
 # do something with the data? I guess?
 	
 	#change back to state mode
+	#r9 still has JP1 address, good
 	#set threshold for touch to 0xF and load the value into the data register
 	#enable sensor 0 and sensor 1
 	movia r10, 0x07bfebff

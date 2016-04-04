@@ -4,7 +4,12 @@
 .equ ADC, 0xFF204000
 .equ ADC_Data, 0x0300FFFF
 .equ ADDR_JP1, 0xFF200060
+.equ Panel_Position, 0x0300FFF0
 
+.equ SENSOR2_POLL, 0x3000FFEE
+.equ SENSOR3_POLL, 0x3000FFDE
+
+.equ TIMER_2, 0xFF202020
 
 .global panel_control
 
@@ -12,16 +17,20 @@
 panel_control:
 
 	#Free up Registers
-	#subi sp, sp, 32
-	#stw ra,  32(sp)
-	#stw r8,  28(sp)
-	#stw r9,  24(sp)
-	#stw r10, 20(sp)
-	#stw r11, 16(sp)
-	#stw r12, 12(sp)
-	#stw r13, 8(sp)
-	#stw r12, 4(sp)
-	#stw r13, 0(sp)
+	subi sp, sp, 48
+	stw ra,  48(sp)
+	stw r8,  44(sp)
+	stw r9,  40(sp)
+	stw r10, 36(sp)
+	stw r11, 32(sp)
+	stw r12, 28(sp)
+	stw r13, 24(sp)
+	stw r14, 20(sp)
+	stw r15, 16(sp)
+	stw r16, 12(sp)
+	stw r17, 8(sp)
+	stw r18, 4(sp)
+	stw r19, 0(sp)
 
 	#Get the Current Position of the Panels
 		#Refresh the data in the ADC registers
@@ -31,6 +40,7 @@ panel_control:
 		
 		#Load in the Data From the ADC
 		ldwio r9, 0(r8)
+		movi r9, 0x0fff # ADC not working right now for some reason.
 		ldwio r10, 4(r8)
 		ldwio r11, 8(r8)
 		ldwio r12, 12(r8)
@@ -47,70 +57,106 @@ panel_control:
 		
 	#Get the light sensor data
 		#LOAD DATA IN FROM Memory
-		movi r9, 0x07
-		movi r10, 0x0F
+		movia r11, SENSOR2_POLL
+		ldw r9, 0(r11)
+		movia r11, SENSOR3_POLL
+		ldw r10, 0(r11)
+		
+	#Get current panel position and put the comparison values in registers
+		movia r11, Panel_Position
+		ldw r12, 0(r11)
+	
+		movia r18, 0x00021CC2  #
+		movia r19, 0x00000E34  #0CD2f
 	
 	#Decide which way to turn and turn that way
+		addi r10, r10, 2
 		bgtu r9, r10, turn_left
+		subi r10, r10, 2
+		addi r9, r9, 2
 		bgtu r10, r9, turn_right
-		br no_turn
+		br turn_center
+		
+		turn_center:
+			#figure out which way we should be turning
+			movia r15, 0x0000ffff
+			bgtu r12, r15, turn_right
+			bgtu r15, r12, turn_left
+			movia r13, 500
+			beq r12, r15, no_turn
+			
+			
+			
+		turn_right:
+			#make sure not already pointed all the way left
+			movia r13, 500
+			beq r12, r19, no_turn
+			
+			#otherwise turn left and decrement the panel position
+			ldw r13, (r8)
+			movia r12, 0xfffffffe
+			and r9, r12, r13
+			stwio r9, 0(r8)
+			
+			movia r11, Panel_Position
+			ldw r12, 0(r11)
+			subi r12, r12, 0x01
+			stw r12, 0(r11)
+			
+			movia r13, 150
+			
+			br no_turn
 			
 		turn_left:
-			#make sure not already pointed all the way left
-			movia r11, ADC_Data
-			ldw r12, 0(r11)
-			movi r13, 0x0FFF
-			bgeu r12, r13, no_turn
-			
-			#otherwise turn left
-			movia r11, 0x07f557ff
-			stwio r11, 4(r8)
-			movia r12, 0xfffffffe
-			stwio r12, 0(r8)
-			br no_turn
-		
-		turn_right:
 			#make sure not already pointed all the way right
-			movia r11, ADC_Data
-			ldw r12, 0(r11)
-			movi r13, 0x05
-			bleu r12, r13, no_turn
+			movia r13, 500
+			beq r12, r18, no_turn
 			
-			#otherwise turn right
-			movia r11, 0x07f557ff
-			stwio r11, 4(r8)
+			#otherwise turn right and increment the panel position
+			ldw r13, (r8)
 			movia r12, 0xfffffffc
-			stwio r12, 0(r8)
-			br no_turn
+			and r10, r12, r13
+			stwio r10, 0(r8)
 			
+			movia r11, Panel_Position
+			ldw r12, 0(r11)
+			addi r12, r12, 0x01
+			stw r12, 0(r11)
+			
+			movia r13, 40
+			
+			br no_turn
+				
 		no_turn:
-			#wait 600 cycles -> let the motor turn the panels
-			#NEED TO DO: make this start the timer and use an interrupt
-			#from timer two to turn off the motors
-			movi r13, 600
+		
 			wait:
 			subi r13, r13, 1
 			bne r13, r0, wait
+				
+			movia r8, ADDR_JP1
+			ldw r13, 0(r8)
+			movia r12, 0x00000000f   #code to turn motor off and leave everything else the way it is
+			or r10, r12, r13
+			stwio r10, 0(r8)
 			
-			#turn the motor off
-			movia r9, 0x07f557ff
-			stwio r9, 4(r8)
-			movia r10, 0xFFFFFFFF
-			stwio r9, 0(r8)
-			
+
+		
+	clear_stack:		
 	#clear off the stack		
-		#ldw ra,  32(sp)
-		#ldw r8,  28(sp)
-		#ldw r9,  24(sp)
-		#ldw r10, 20(sp)
-		#ldw r11, 16(sp)
-		#ldw r12, 12(sp)
-		#ldw r13, 8(sp)
-		#ldw r12, 4(sp)
-		#ldw r13, 0(sp)
-		#addi sp, sp, 32
-			#Panel 1: X Watts
-			#Panel 2: Y Watts
+		ldw ra,  48(sp)
+		ldw r8,  44(sp)
+		ldw r9,  40(sp)
+		ldw r10, 36(sp)
+		ldw r11, 32(sp)
+		ldw r12, 28(sp)
+		ldw r13, 24(sp)
+		ldw r14, 20(sp)
+		ldw r15, 16(sp)
+		ldw r16, 12(sp)
+		ldw r17, 8(sp)
+		ldw r18, 4(sp)
+		ldw r19, 0(sp)
+		addi sp, sp, 48
 			
-br panel_control
+ret
 	

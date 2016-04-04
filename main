@@ -188,6 +188,7 @@ LOOP:
 	
 	light_show:
 		stwio r10, 0(r11)
+		
 		movia r8, 1000000
 		party:
 			subi r8, r8, 0x01
@@ -501,14 +502,20 @@ reset_jp1:
 
 exception_handler:
 
-	addi sp, sp, -24
-	stw r9, 0(sp)
-	stw r10, 4(sp) 
-	stw r11, 8(sp)
-	stw r12, 12(sp)
-	stw r13, 16(sp)
-	stw r14, 20(sp)
-	stw r15, 24(sp)
+	subi sp, sp, 48
+	stw r8,  48(sp)
+	stw r9,  44(sp)
+	stw r10,  40(sp)
+	stw r11, 36(sp)
+	stw r12, 32(sp)
+	stw r13, 28(sp)
+	stw r14, 24(sp)
+	stw r15, 20(sp)
+	stw r16, 16(sp)
+	stw r17, 12(sp)
+	stw r18, 8(sp)
+	stw r19, 4(sp)
+	stw r20, 0(sp)
 
 	# check the interrupt pending register to see if there is a result (an interrupt)
 	rdctl et, ipending
@@ -559,14 +566,20 @@ exit_handler:
 	movi r13, -1
 	stwio r13, 12(r4)
 
-	ldw r15, 24(sp)
-	ldw r14, 20(sp)
-	ldw r13, 16(sp)
-	ldw r12, 12(sp)
-	ldw r11, 8(sp)
-	ldw r10, 4(sp)
-	ldw r9, 0(sp)
-	addi sp, sp, 24
+	ldw r8,  48(sp)
+	ldw r9,  44(sp)
+	ldw r10,  40(sp)
+	ldw r11, 36(sp)
+	ldw r12, 32(sp)
+	ldw r13, 28(sp)
+	ldw r14, 24(sp)
+	ldw r15, 20(sp)
+	ldw r16, 16(sp)
+	ldw r17, 12(sp)
+	ldw r18, 8(sp)
+	ldw r19, 4(sp)
+	ldw r20, 0(sp)
+	addi sp, sp, 48
 
 	subi ea, ea, 4
 

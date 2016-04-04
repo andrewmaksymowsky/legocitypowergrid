@@ -1,5 +1,3 @@
-/* The main file for the project. */
-
 .section .data
 
 HOUSE_0_ON:
@@ -20,8 +18,12 @@ HOUSE_1_OFF:
 #used to track the panel position
 .equ Panel_Position, 0x0300FFF0
 
+#address for slider switches
+.equ Sliders, 0xFF200040
+
 # address for ADDR_JP1
 .equ ADDR_JP1, 0xFF200060
+.equ ADDR_JP2, 0xFF200070
 
 # address for the IRQ line for JP1 (IRQ11)
 .equ ADDR_JP1_IRQ, 0x800 
@@ -70,6 +72,15 @@ HOUSE_1_OFF:
 .global main
 
 main:
+
+#set JP1 to all zero
+movia r8, ADDR_JP2
+movia r15, 0xffffffff
+stwio r15, 4(r8)
+
+movia r15, 0x00000000
+stwio r0, 0(r8)
+
 
 #move the address of JP1 into r8
 movia r8, ADDR_JP1
@@ -163,12 +174,37 @@ wrctl status, r8
 LOOP:
 	call panel_control
 	
-	movi r8, 5
+	#check the slider switches -> easter egg
+	movia r11, RED_LEDS
+	movia r8, Sliders
+	ldwio r9, 0(r8)
+	movia r10, 0b01010101
+	beq r10, r9, light_show
 	
-count_down:
-	subi r8, r8, 1
-	beq r8, r0, LOOP
-	br count_down
+	stwio r0, 0(r11)
+	bne r10, r9, LOOP
+	
+	movia r9, 10
+	
+	light_show:
+		stwio r10, 0(r11)
+		movia r8, 1000000
+		party:
+			subi r8, r8, 0x01
+			bne r8, r0, party
+		
+		roli r10, r10, 3
+		stwio r10, 0(r11)
+		movia r8, 1000000
+		part:
+			subi r8, r8, 0x01
+			bne r8, r0, part
+	subi r9, r9, 0x01
+	bne r9, r0, light_show
+		
+	
+	
+	br LOOP
 	
 
 #****************SUBROUTINES FOR EXCEPTION HANDLER******************
@@ -239,7 +275,14 @@ act_sensor0:
 		# Setting the state to 1, loaded
 		movi r10, 1
 		stw r10, 0(r9)
-
+		
+		#turn on the LEDS in house 0
+		movia r15, ADDR_JP2
+		ldw r14, 0(r15)
+		movia r16, 0x3fffffff
+		and r14, r14, r16
+		orhi r14, r14, 0xc000
+		stwio r14, 0(r15)
 		
 		#Deal with JTAG. Prints 0/1
 		movia r15, HOUSE_0_ON
@@ -257,6 +300,14 @@ act_sensor0:
 		movi r10, 0
 		stw r10, 0(r9)
 
+		#turn off the LEDs in house 0
+		movia r15, ADDR_JP2
+		ldw r14, 0(r15)
+		movia r16, 0x3fffffff
+		and r14, r14, r16
+		orhi r14, r14, 0x0000
+		stwio r14, 0(r15)
+		
 		movia r15, HOUSE_0_OFF
 		Loop_house0_disconnect:
 			ldb r14, 0(r15)
@@ -288,6 +339,14 @@ act_sensor1:
 		movi r10, 1
 		stw r10, 0(r9)
 		
+		#turn on the LEDs in house 1
+		movia r15, ADDR_JP2
+		ldw r14, 0(r15)
+		movia r16, 0xcfffffff
+		and r14, r14, r16
+		orhi r14, r14, 0x3000
+		stwio r14, 0(r15)
+		
 		#Deal with JTAG. Prints 0/1
 		movia r15, HOUSE_1_ON
 		Loop_house1:
@@ -303,6 +362,14 @@ act_sensor1:
 		#Setting state to 0, disconnected
 		movi r10, 0
 		stw r10, 0(r9)
+		
+		#turn off the LEDs in house 1
+		movia r15, ADDR_JP2
+		ldw r14, 0(r15)
+		movia r16, 0xcfffffff
+		and r14, r14, r16
+		orhi r14, r14, 0x0000
+		stwio r14, 0(r15)
 
 		movia r15, HOUSE_1_OFF
 		Loop_house1_disconnect:
@@ -507,4 +574,52 @@ exit_handler:
 
 
 .end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

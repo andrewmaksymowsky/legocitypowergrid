@@ -82,7 +82,7 @@ panel_control:
 			movia r15, 0x0000ffff
 			bgtu r12, r15, turn_right
 			bgtu r15, r12, turn_left
-			movia r13, 500
+			movia r13, 150
 			beq r12, r15, no_turn
 			
 			
@@ -103,7 +103,7 @@ panel_control:
 			subi r12, r12, 0x01
 			stw r12, 0(r11)
 			
-			movia r13, 150
+			movia r13, 500
 			
 			br no_turn
 			
@@ -123,7 +123,7 @@ panel_control:
 			addi r12, r12, 0x01
 			stw r12, 0(r11)
 			
-			movia r13, 40
+			movia r13, 300
 			
 			br no_turn
 				
@@ -160,3 +160,4 @@ panel_control:
 			
 ret
 	
+
